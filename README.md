@@ -10,7 +10,7 @@ Gioco di aste tra due giocatori sullo stesso dispositivo. 20 monete a testa, 4 p
 - **Multiverso** — personaggi di anime diversi mescolati.
 
 ## Note
-- Le foto dei personaggi sono caricate nel browser dall'API pubblica [Jikan](https://jikan.moe) (MyAnimeList) e messe in cache; serve la connessione. Se una foto non si trova, la carta mostra nome e iniziali.
+- Le foto dei personaggi sono link alle immagini pubbliche di [AniList](https://anilist.co) (non sono salvate nel repo); serve la connessione. Se una foto non si carica, la carta mostra nome e iniziali.
 - I punteggi finali sono indicativi di gioco, non un verdetto canonico. A parità vince chi ha più monete.
 - La partita si salva da sola: puoi riprenderla dal menu. Il tasto ↶ annulla l'ultima mossa.
 

@@ -1,111 +1,135 @@
-// Foto dei personaggi: caricate a runtime nel browser dall'API pubblica Jikan (MyAnimeList).
-// Nessuna immagine è salvata nel repo. Risultati in cache nel localStorage.
+// Foto dei personaggi: link alle immagini pubbliche di AniList (anilist.co).
+// Le immagini NON sono salvate nel repo: il browser le carica dal CDN di AniList.
 const IMG = (() => {
-  const LS = 'aba_img_v2';
-  const API = 'https://api.jikan.moe/v4';
-  const GAP = 420; // Jikan: max ~3 richieste/secondo
-  let cache = {};
-  try { cache = JSON.parse(localStorage.getItem(LS) || '{}'); } catch (e) {}
-  const save = () => { try { localStorage.setItem(LS, JSON.stringify(cache)); } catch (e) {} };
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-  const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/['’`.]/g, '').replace(/uu/g, 'u').replace(/ou/g, 'o').replace(/oo/g, 'o');
-  const toks = s => norm(s).split(/[^a-z0-9]+/).filter(Boolean);
-  const isUrl = v => typeof v === 'string' && v.startsWith('http');
-  const freshMiss = v => typeof v === 'string' && v[0] === '~' && Date.now() - +v.slice(1) < 3 * 864e5;
-  const bad = u => !u || /questionmark|apple-touch|na\.gif/i.test(u);
-
-  // coda seriale per rispettare il rate limit
-  let chain = Promise.resolve();
-  async function doFetch(path, n = 0) {
-    const r = await fetch(API + path);
-    if (r.status === 429 && n < 4) { await sleep(1300 * (n + 1)); return doFetch(path, n + 1); }
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.json();
-  }
-  function api(path) {
-    const p = chain.then(() => doFetch(path));
-    chain = p.catch(() => {}).then(() => sleep(GAP));
-    return p;
-  }
-
-  const lists = {};
-  function getList(malId) {
-    if (!lists[malId]) {
-      lists[malId] = api(`/anime/${malId}/characters`).then(j => (j.data || []).map(e => {
-        const im = e.character.images || {};
-        const url = (im.webp && im.webp.image_url) || (im.jpg && im.jpg.image_url);
-        return { t: toks(e.character.name), url: bad(url) ? null : url, fav: e.favorites || 0, main: e.role === 'Main' };
-      }).filter(e => e.url));
-      lists[malId].catch(() => { delete lists[malId]; });
-    }
-    return lists[malId];
-  }
-
-  function best(entries, keyStr) {
-    for (const alt of keyStr.split('|')) {
-      const T = toks(alt);
-      const c = entries.filter(e => T.every(t => e.t.includes(t)));
-      if (c.length) {
-        c.sort((a, b) => (b.fav + (b.main ? 5000 : 0)) - (a.fav + (a.main ? 5000 : 0)));
-        return c[0].url;
-      }
-    }
-    return null;
-  }
-
-  function emit(cid, url) {
-    window.dispatchEvent(new CustomEvent('imgready', { detail: { cid, url } }));
-  }
-
-  const animeJobs = {};
-  function resolveAnime(anime) {
-    if (animeJobs[anime.id]) return animeJobs[anime.id];
-    const job = (async () => {
-      const todo = anime.chars.map((c, i) => ({ c, cid: anime.id + '-' + i })).filter(x => !isUrl(cache[x.cid]) && !freshMiss(cache[x.cid]));
-      if (!todo.length) return;
-      const res = await Promise.allSettled(anime.mal.map(getList));
-      const ok = res.filter(r => r.status === 'fulfilled');
-      if (!ok.length) throw new Error('offline');
-      const entries = ok.flatMap(r => r.value);
-      const missing = [];
-      for (const x of todo) {
-        const url = best(entries, x.c.k);
-        if (url) { cache[x.cid] = url; emit(x.cid, url); } else missing.push(x);
-      }
-      save();
-      // ricerca singola per chi non è stato trovato nelle liste della serie
-      for (const x of missing) {
-        try {
-          const q = x.c.k.split('|')[0];
-          const j = await api(`/characters?q=${encodeURIComponent(q)}&order_by=favorites&sort=desc&limit=10`);
-          const entries2 = (j.data || []).map(e => {
-            const im = e.images || {};
-            const url = (im.webp && im.webp.image_url) || (im.jpg && im.jpg.image_url);
-            return { t: toks(e.name), url: bad(url) ? null : url, fav: e.favorites || 0, main: false };
-          }).filter(e => e.url);
-          const url = best(entries2, x.c.k);
-          cache[x.cid] = url || '~' + Date.now();
-          if (url) emit(x.cid, url);
-          save();
-        } catch (e) { /* riprova la prossima volta */ }
-      }
-    })();
-    animeJobs[anime.id] = job;
-    job.catch(() => { delete animeJobs[anime.id]; });
-    return job;
-  }
-
+  const BASE = 'https://s4.anilist.co/file/anilistcdn/character/large/';
+  const MAP = {
+    'bc-0': 'b123285-tKijiuQErDS0.png',
+    'bc-1': 'b123284-w6kIFYnTclMd.png',
+    'bc-2': 'b123283-7nJHtKha0LSm.png',
+    'bc-3': 'b124440-Lpdo6y8cljV6.png',
+    'bc-4': 'b124435-gXFVXWrCcieK.jpg',
+    'bc-5': 'b124522-lJK4Hy6Aokie.png',
+    'bc-6': '124449-M67Ex2GcxmYM.jpg',
+    'bc-7': 'b124439-EqjbyC8GOKW0.jpg',
+    'bc-8': 'b124442-KpZhHmhjw2EG.png',
+    'bc-9': 'b124521-MqX5KT2tGSa8.png',
+    'bc-10': 'b124447-2J1PKMgWETNT.png',
+    'bc-11': 'b124433-QyoZrgIUsSpd.png',
+    'bc-12': 'b126948-2yL8YEIqLLpq.png',
+    'bc-13': 'b124472-sCjDIE5232uS.png',
+    'nar-0': 'b17-phjcWCkRuIhu.png',
+    'nar-1': 'b13-SISLEw1oAD7a.png',
+    'nar-2': 'b85-mkVBh2yjxjmx.png',
+    'nar-3': 'b14-9Kb1E5oel1ke.png',
+    'nar-4': 'b53901-HnRKSoHMG5Vg.png',
+    'nar-5': 'b2535-Xq9WKNPJQEt3.png',
+    'nar-6': 'b1662-4E5J0LX9jZKZ.png',
+    'nar-7': 'b2423-RO5MyoXSA9OL.png',
+    'nar-8': 'b3180-ITMGBLWNBOgV.png',
+    'nar-9': 'b1555-Q41GLTV3FvYF.png',
+    'nar-10': 'b306-oUTOO45xInXt.png',
+    'nar-11': 'b307-xieUEdhdTVwQ.png',
+    'nar-12': 'b3149-j6cl8A9yup51.png',
+    'nar-13': 'b121439-0XY8buCyFI94.png',
+    'nar-14': 'b130426-umQ1G1MjtYJ9.png',
+    'ble-0': 'b5-a7bkJgjhhigE.png',
+    'ble-1': 'b6-25WoBeWMZXBc.png',
+    'ble-2': 'b907-kgnDKeMtEN5y.png',
+    'ble-3': 'b909-slhoFBon7oiH.jpg',
+    'ble-4': 'b1086-qR9218BjZTC0.png',
+    'ble-5': 'b245-buy3Cfn6IFSB.jpg',
+    'ble-6': 'b564-a6LJitrjSfKC.jpg',
+    'ble-7': 'b5726-mO7kc8Abka9J.jpg',
+    'ble-8': 'b1080-JUNo2Or0UGZg.jpg',
+    'ble-9': 'b1081-xLTqHfLL2I2W.png',
+    'ble-10': 'b210-mw01NrQfRjzT.png',
+    'ble-11': 'b908-JSYUkJLCw1f0.png',
+    'ble-12': 'b906-ImRjx5HFM8X6.png',
+    'ble-13': 'b68537-iUYuTUyHRJpf.png',
+    'ft-0': 'b5187-y1OEdRu9sPN2.png',
+    'ft-1': 'b5186-izgXf2S86K9u.png',
+    'ft-2': 'b4839-p2SBgjdTxHxk.png',
+    'ft-3': 'b5189-GR1xdok9SFsN.jpg',
+    'ft-4': 'b16893-l9HhHQ8j09H5.jpg',
+    'ft-5': 'b28886-unO1rEi3zdyF.jpg',
+    'ft-6': 'b8294-24LS3f4VMrfs.jpg',
+    'ft-7': 'b5190-Xql1rGKUv1ql.png',
+    'ft-8': '5333.jpg',
+    'ft-9': '37720-WfpaYoeW2OkV.jpg',
+    'ft-10': 'b22751-ITQZWdiz8Ym7.png',
+    'ft-11': 'b29502-znlVXVdXEQqg.png',
+    'ft-12': 'n49003-EGHCfhVFatPw.png',
+    'ft-13': 'b5188-1jTaic3aJ7Ds.jpg',
+    'op-0': 'b40-MNypXsxSRb1R.png',
+    'op-1': 'b62-S7oAeA9WInjV.png',
+    'op-2': 'b305-6lisPmHtCnLT.png',
+    'op-3': 'b723-vp5hPptgnNEC.png',
+    'op-4': 'b724-GFGgI9AJQkfy.jpg',
+    'op-5': 'b309-H64NhbJ2ywIQ.jpg',
+    'op-6': 'b61-ywXUyyocEEqt.png',
+    'op-7': 'b13767-U604OJN9dxCn.jpg',
+    'op-8': 'b2072-Lc6jEdsueJUK.jpg',
+    'op-9': 'b727-wUJx7M1z5xON.png',
+    'op-10': 'b2751-NnzW0N2vCTjX.jpg',
+    'op-11': 'b46109-MT7Hm4Bk93In.png',
+    'op-12': 'b16342-kVOF6V5Q94go.png',
+    'op-13': 'n2064-OpnF4nLi6bvL.png',
+    'op-14': 'b3331-7ZJDc4BNv9Yp.jpg',
+    'db-0': '246-wsRRr6z1kii8.png',
+    'db-1': 'b913-NIFkKazWM8VO.png',
+    'db-2': 'b2093-kdFZhqcNSsqW.png',
+    'db-3': 'b914-KuS8AWjqBrqa.jpg',
+    'db-4': 'b3694-bDfOdSSdFfPv.png',
+    'db-5': '3908.jpg',
+    'db-6': '1012.jpg',
+    'db-7': 'b2707-YKWmn4q87oF8.png',
+    'db-8': 'b4945-iE59qIP7TxPu.png',
+    'db-9': 'b76348-pGWrznfxgPIV.png',
+    'db-10': 'b126257-nGjgbsnxZkUB.png',
+    'db-11': 'b2159-qtEuMYyOUkwY.jpg',
+    'db-12': 'b76346-BNh2DE5Rh2IW.jpg',
+    'db-13': 'b6122-N8XCxV2YPd1r.png',
+    'jjk-0': 'b127212-FVm2tD0erQ5B.png',
+    'jjk-1': 'b126635-L0y3I92JSUkN.png',
+    'jjk-2': 'b133700-f6sOO3TcgLV6.png',
+    'jjk-3': 'b127691-9zqh1xpIubn7.png',
+    'jjk-4': 'b133701-rCQuDpHr3UZL.png',
+    'jjk-5': 'b133704-8wLTGjc234q2.png',
+    'jjk-6': 'b134167-5TCytk45YByD.png',
+    'jjk-7': 'b157115-kdhRYQdVhH95.png',
+    'jjk-8': 'b129571-GHJk7gviHOOw.jpg',
+    'jjk-9': 'b133702-Y7JRG5vAvjIL.png',
+    'jjk-10': 'b137975-6TH7PiLWJaqy.png',
+    'jjk-11': 'b133699-FCnXaISgazAi.png',
+    'jjk-12': 'b162722-btzdghBizxKS.jpg',
+    'jjk-13': 'b137974-9qnK3DPrvLKh.jpg',
+    'ten-0': 'b123962-eL9yGV0NLMF7.png',
+    'ten-1': 'b128034-Gg5MrpTFNSv8.png',
+    'ten-2': 'b128036-lW0dxNwerqw4.png',
+    'ten-3': 'b128033-fLbTgW4M2yj3.png',
+    'ten-4': 'b128038-VgVcqf6NDGJ5.png',
+    'ten-5': 'b128040-QOhtFHgfOT5O.png',
+    'ten-6': 'b128039-cce4njbCcb2M.png',
+    'ten-7': 'b131033-0LguIALHCBEH.jpg',
+    'ten-8': 'b131041-MKPEBzVY1XPh.jpg',
+    'ten-9': 'b128035-7r8BX1tt8BKg.png',
+    'ten-10': 'b128037-kJ3HzX4s4iDl.png',
+    'ten-11': 'b131042-ve0zpRm1ZzCp.png',
+    'ten-12': 'b131052-hbVYgUsI5ahb.png',
+    'ten-13': 'b131048-uC7YdMAMSyzg.jpg'
+  };
+  const loaded = {};
   return {
-    get: cid => (isUrl(cache[cid]) ? cache[cid] : undefined),
+    get: cid => (MAP[cid] ? BASE + MAP[cid] : undefined),
+    // precarica le foto in anticipo così le carte compaiono già con l'immagine
     prefetch(animeIds) {
-      (async () => {
-        for (const id of animeIds) {
-          const a = ANIME.find(x => x.id === id);
-          if (a) { try { await resolveAnime(a); } catch (e) {} }
-        }
-      })();
+      for (const id of animeIds) {
+        const a = ANIME.find(x => x.id === id); if (!a) continue;
+        a.chars.forEach((c, i) => {
+          const cid = id + '-' + i;
+          if (MAP[cid] && !loaded[cid]) { loaded[cid] = 1; const im = new Image(); im.referrerPolicy = 'no-referrer'; im.src = BASE + MAP[cid]; }
+        });
+      }
     },
   };
 })();
