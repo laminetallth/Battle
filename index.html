@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<title>Anime Battle Arena — Lamine vs Bassirou</title>
+<meta name="theme-color" content="#07030f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Exo+2:ital,wght@0,500;0,700;0,900;1,900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@900&text=%E6%BF%80%E9%97%98%E5%AF%BE%E6%B1%BA%E9%AD%94%E5%BF%8D%E6%96%AC%E5%A6%96%E6%B5%B7%E9%BE%8D%E5%91%AA%E8%BB%A2%E7%95%8C%E4%B8%80%E4%B8%89%E6%88%A6%E5%8B%9D%E7%95%AA" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="turn-none">
+<canvas id="bg"></canvas>
+<div id="rays"></div>
+<div id="halftone"></div>
+
+<main id="app">
+
+  <!-- ================= INTRO ================= -->
+  <section id="intro" class="screen active">
+    <div class="intro-rays"></div>
+    <div class="intro-kanji">激闘</div>
+    <div class="orb orb-red"><i></i></div>
+    <div class="orb orb-blue"><i></i></div>
+    <div class="shock"></div><div class="shock s2"></div><div class="shock s3"></div>
+    <div class="slash sl1"></div><div class="slash sl2"></div>
+    <h1 class="logo">
+      <span class="l1">ANIME</span>
+      <span class="l2" data-t="BATTLE">BATTLE</span>
+      <span class="l3" data-t="ARENA">ARENA</span>
+    </h1>
+    <div class="intro-names">
+      <div class="iname red"><small>LO SFIDANTE ROSSO</small>LAMINE</div>
+      <div class="ivs">VS</div>
+      <div class="iname blue"><small>LO SFIDANTE BLU</small>BASSIROU</div>
+    </div>
+    <div class="tap">▶ TOCCA PER INIZIARE</div>
+  </section>
+
+  <!-- ================= SETUP ================= -->
+  <section id="setup" class="screen">
+    <div class="setup-wrap">
+      <header class="setup-head">
+        <div class="mini-logo">ANIME <b>BATTLE</b> <i>ARENA</i></div>
+        <div class="duel"><span class="r">LAMINE</span><em>VS</em><span class="b">BASSIROU</span></div>
+      </header>
+
+      <button id="resume" class="resume" hidden>
+        <span class="rs-dot"></span><span><b>PARTITA IN CORSO</b><small id="resumeInfo"></small></span><span class="rs-go">RIPRENDI ▶</span>
+      </button>
+
+      <h2 class="step"><span>1</span>MODALITÀ</h2>
+      <div id="modes" class="modes"></div>
+
+      <h2 class="step" id="animeStep"><span>2</span>SCEGLI L'ANIME</h2>
+      <div id="animes" class="animes"></div>
+
+      <details class="rules">
+        <summary>📜 Regole veloci</summary>
+        <ul>
+          <li>20 monete a testa. Obiettivo: <b>4 personaggi</b> per squadra.</li>
+          <li>Chi apre punta <b>0</b>; poi a turno si <b>rilancia</b> (più alto, entro le tue monete) o si <b>passa</b>.</li>
+          <li>Chi passa lascia il personaggio all'ultimo offerente, che paga l'offerta.</li>
+          <li>Chi apre cambia a ogni asta. Se uno completa la squadra, l'altro riceve gratis i personaggi mancanti.</li>
+          <li><b>Tre carte:</b> chi apre resta bloccato sulla carta scelta; l'avversario può rilanciare sulla stessa o su un'altra.</li>
+          <li>Il dispositivo si passa di mano: lo schermo ti dice sempre di chi è il turno.</li>
+        </ul>
+      </details>
+
+      <button id="startBtn" class="big-btn" disabled><span>COMBATTI!</span></button>
+      <p class="credit">Foto dei personaggi caricate da MyAnimeList (Jikan API). Serve la connessione.</p>
+    </div>
+  </section>
+
+  <!-- ================= ARENA ================= -->
+  <section id="arena" class="screen">
+    <div class="hud">
+      <div class="pp red" id="pL">
+        <div class="pp-top"><div class="pp-name">LAMINE</div><div class="coins" id="coinsL"><i class="coin"></i><b id="cL">20</b></div></div>
+        <div class="slots" id="sL"></div>
+      </div>
+      <div class="round">
+        <small>ASTA</small><b id="roundNo">1</b><small id="modeLbl"></small>
+      </div>
+      <div class="pp blue" id="pB">
+        <div class="pp-top"><div class="coins" id="coinsB"><i class="coin"></i><b id="cB">20</b></div><div class="pp-name">BASSIROU</div></div>
+        <div class="slots" id="sB"></div>
+      </div>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="stage-kanji" id="stageKanji">戦</div>
+      <div class="stage-floor"></div>
+      <div class="cards" id="cards"></div>
+      <div class="bidbox" id="bidbox">
+        <small id="bidLbl">OFFERTA</small>
+        <div class="bid-row"><b id="bidAmt">0</b><i class="coin big"></i></div>
+        <span id="bidWho">—</span>
+      </div>
+    </div>
+
+    <div class="controls" id="controls">
+      <div class="ctrl-top">
+        <button id="undoBtn" class="mini-btn" title="Annulla mossa">↶</button>
+        <div class="turnlbl"><span id="turnLbl">TURNO</span><small id="hint"></small></div>
+        <button id="mute2" class="mini-btn" title="Audio">🔊</button>
+        <button id="menuBtn" class="mini-btn" title="Menu">☰</button>
+      </div>
+      <div class="stepper" id="stepper">
+        <button id="minus" aria-label="meno">−</button>
+        <div class="amt"><b id="amt">1</b><i class="coin"></i></div>
+        <button id="plus" aria-label="più">+</button>
+        <button id="plus5" class="quick">+5</button>
+        <button id="allin" class="quick allin">ALL IN</button>
+      </div>
+      <div class="actions">
+        <button id="passBtn" class="act pass">PASSO</button>
+        <button id="bidBtn" class="act bid">RILANCIA</button>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ================= FINALE ================= -->
+  <section id="final" class="screen">
+    <div class="final-wrap">
+      <div class="final-kanji">決</div>
+      <h2 class="final-title" id="finalTitle">FINE PARTITA</h2>
+      <div class="teams">
+        <div class="team red" id="teamL">
+          <h3>LAMINE</h3>
+          <div class="tcards" id="fL"></div>
+          <div class="fstats"><span>Monete rimaste <b id="fcL">0</b></span><span>Punteggio <b id="fsL">0</b></span></div>
+        </div>
+        <div class="vsmall">VS</div>
+        <div class="team blue" id="teamB">
+          <h3>BASSIROU</h3>
+          <div class="tcards" id="fB"></div>
+          <div class="fstats"><span>Monete rimaste <b id="fcB">0</b></span><span>Punteggio <b id="fsB">0</b></span></div>
+        </div>
+      </div>
+      <div class="verdict" id="verdict"></div>
+      <p class="disclaimer">Punteggi indicativi di gioco, non un verdetto canonico sui poteri dei personaggi. A parità di punteggio vince chi ha più monete; se anche le monete sono pari è pareggio.</p>
+      <div class="final-btns">
+        <button id="againBtn" class="big-btn"><span>RIVINCITA</span></button>
+        <button id="menuBtn2" class="ghost-btn">MENU</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- overlay -->
+<div id="coinflip"><div class="cf-title">CHI APRE?</div><div class="flipcoin"><div class="face fl">L</div><div class="face fb">B</div></div><div class="cf-res"></div></div>
+<div id="banner"><div class="bn-band"><div class="bn-lines"></div></div><div class="bn-text"></div></div>
+<div id="wipe"><i></i><i></i></div>
+<div id="flash"></div>
+<div id="toast"></div>
+<canvas id="fx"></canvas>
+<button id="mute" title="Audio">🔊</button>
+
+<script src="data.js"></script>
+<script src="images.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
